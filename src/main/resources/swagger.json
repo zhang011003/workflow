@@ -1,0 +1,1026 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "version": "1.0",
+        "title": "工作流相关API文档"
+    },
+    "host": "localhost:8081",
+    "basePath": "/workflow",
+    "tags": [
+        {
+            "name": "model",
+            "description": "流程模型Model操作相关"
+        },
+        {
+            "name": "workflow",
+            "description": "流程操作相关"
+        }
+    ],
+    "paths": {
+        "/model": {
+            "get": {
+                "tags": [
+                    "model"
+                ],
+                "summary": "获取所有模型",
+                "operationId": "modelListUsingGET",
+                "produces": [
+                    "*/*"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/Model"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            },
+            "post": {
+                "tags": [
+                    "model"
+                ],
+                "summary": "新建一个模型",
+                "operationId": "newModelUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/model/convertToModel/{processDefinitionId}": {
+            "post": {
+                "tags": [
+                    "model"
+                ],
+                "summary": "convertToModel",
+                "operationId": "convertToModelUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "processDefinitionId",
+                        "in": "path",
+                        "description": "processDefinitionId",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Model"
+                        }
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/model/deployment": {
+            "post": {
+                "tags": [
+                    "model"
+                ],
+                "summary": "发布模型为流程定义",
+                "operationId": "deployUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "modelId",
+                        "in": "query",
+                        "description": "模型id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/model/{id}": {
+            "delete": {
+                "tags": [
+                    "model"
+                ],
+                "summary": "删除模型",
+                "operationId": "deleteModelUsingDELETE",
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "modelId",
+                        "in": "query",
+                        "description": "模型id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/activeProcessDefinition": {
+            "post": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "激活指定流程定义",
+                "operationId": "activeProcessDefinitionUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "activationDate",
+                        "in": "query",
+                        "description": "激活日期，如果为空，则立即激活",
+                        "required": false,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    {
+                        "name": "activeProcessInstances",
+                        "in": "query",
+                        "description": "是否激活流程实例",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "processDefinitionId",
+                        "in": "query",
+                        "description": "流程定义id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/activeProcessInstance": {
+            "post": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "激活指定流程实例",
+                "operationId": "activeProcessInstanceUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "processInstanceId",
+                        "in": "query",
+                        "description": "流程定义id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/completeTask": {
+            "post": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "completeTask",
+                "operationId": "completeTaskUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "reqBean",
+                        "description": "reqBean",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FinishTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/getProcessGraphics": {
+            "get": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "getProcessGraphics",
+                "operationId": "getProcessGraphicsUsingGET",
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "processDefinitionId",
+                        "in": "query",
+                        "description": "流程定义id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "processInstanceId",
+                        "in": "query",
+                        "description": "流程实例id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string",
+                            "format": "byte"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/queryDeployedProcessDefinition": {
+            "get": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "查询已部署的流程定义列表",
+                "operationId": "queryDeployedProcessDefinitionUsingGET",
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "页数",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "每页条数",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/QueryDeployedResponce"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/queryStartedProcess": {
+            "get": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "查询已启动的流程实例",
+                "operationId": "queryStartedProcessUsingGET",
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "businessKey",
+                        "in": "query",
+                        "description": "业务主键",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "页数",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    {
+                        "name": "processDefinitionId",
+                        "in": "query",
+                        "description": "流程定义id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "processInstanceId",
+                        "in": "query",
+                        "description": "流程实例id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "每页条数",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/QueryStartedProcessResponce"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/queryTask": {
+            "get": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "queryTask",
+                "operationId": "queryTaskUsingGET",
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "assignee",
+                        "in": "query",
+                        "description": "负责人",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "页数",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    {
+                        "name": "processDefinitionKey",
+                        "in": "query",
+                        "description": "流程定义id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "processInstanceId",
+                        "in": "query",
+                        "description": "流程实例id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "description": "每页条数",
+                        "required": false,
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "taskDefinitionKey",
+                        "in": "query",
+                        "description": "任务定义key",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "query",
+                        "description": "任务id",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/QueryTaskResponce"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/startProcess": {
+            "post": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "启动流程",
+                "operationId": "startProcessUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "reqBean",
+                        "description": "reqBean",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/StartProcessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/StartProcessResponce"
+                        }
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/suspendProcessDefinition": {
+            "post": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "挂起指定流程定义",
+                "operationId": "suspendProcessDefinitionUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "processDefinitionId",
+                        "in": "query",
+                        "description": "流程定义id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "suspendProcessInstances",
+                        "in": "query",
+                        "description": "是否挂起流程实例",
+                        "required": false,
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "suspensionDate",
+                        "in": "query",
+                        "description": "挂起日期，如果为空，则立即挂起",
+                        "required": false,
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        },
+        "/process/suspendProcessInstance": {
+            "post": {
+                "tags": [
+                    "workflow"
+                ],
+                "summary": "挂起指定流程实例",
+                "operationId": "suspendProcessInstanceUsingPOST",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "*/*"
+                ],
+                "parameters": [
+                    {
+                        "name": "processInstanceId",
+                        "in": "query",
+                        "description": "流程实例id",
+                        "required": false,
+                        "type": "string"
+                    },
+                    {
+                        "name": "systemCode",
+                        "in": "query",
+                        "description": "系统编码",
+                        "required": false,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "201": {
+                        "description": "Created"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                },
+                "deprecated": false
+            }
+        }
+    },
+    "definitions": {
+        "FinishTaskRequest": {
+            "type": "object",
+            "properties": {
+                "processVariables": {
+                    "type": "object",
+                    "description": "流程变量，根据具体流程定义传递",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "systemCode": {
+                    "type": "string",
+                    "description": "系统编码"
+                },
+                "taskId": {
+                    "type": "string",
+                    "description": "任务id"
+                }
+            },
+            "title": "FinishTaskRequest"
+        },
+        "Model": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "createTime": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "deploymentId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "lastUpdateTime": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "metaInfo": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer",
+                    "format": "int32"
+                }
+            },
+            "title": "Model"
+        },
+        "QueryDeployedResponce": {
+            "type": "object",
+            "properties": {
+                "processDefinitionId": {
+                    "type": "string"
+                },
+                "processDefinitionName": {
+                    "type": "string"
+                },
+                "processDefinitionVersion": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "suspended": {
+                    "type": "boolean"
+                }
+            },
+            "title": "QueryDeployedResponce"
+        },
+        "QueryStartedProcessResponce": {
+            "type": "object",
+            "properties": {
+                "activityId": {
+                    "type": "string"
+                },
+                "businessKey": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                },
+                "processDefinitionId": {
+                    "type": "string"
+                },
+                "processInstanceId": {
+                    "type": "string"
+                },
+                "processVariables": {
+                    "type": "object"
+                },
+                "tenantId": {
+                    "type": "string"
+                }
+            },
+            "title": "QueryStartedProcessResponce"
+        },
+        "QueryTaskResponce": {
+            "type": "object",
+            "properties": {
+                "assignee": {
+                    "type": "string"
+                },
+                "businessKey": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "createTime": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "escription": {
+                    "type": "string"
+                },
+                "executionId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "parentTaskId": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "processDefinitionId": {
+                    "type": "string"
+                },
+                "processInstanceId": {
+                    "type": "string"
+                },
+                "processVariables": {
+                    "type": "object"
+                },
+                "taskDefinitionKey": {
+                    "type": "string"
+                },
+                "tenantId": {
+                    "type": "string"
+                }
+            },
+            "title": "QueryTaskResponce"
+        },
+        "StartProcessRequest": {
+            "type": "object",
+            "properties": {
+                "businessKey": {
+                    "type": "string",
+                    "description": "业务主键，供业务后续使用"
+                },
+                "processDefinitionId": {
+                    "type": "string",
+                    "description": "流程定义id"
+                },
+                "processVariables": {
+                    "type": "object",
+                    "description": "流程变量，根据具体流程定义传递",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "systemCode": {
+                    "type": "string",
+                    "description": "系统编码"
+                }
+            },
+            "title": "StartProcessRequest"
+        },
+        "StartProcessResponce": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "processInstanceId": {
+                    "type": "string"
+                }
+            },
+            "title": "StartProcessResponce"
+        }
+    }
+}

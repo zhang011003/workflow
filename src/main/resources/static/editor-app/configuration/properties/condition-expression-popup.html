@@ -1,0 +1,112 @@
+
+<div class="modal" ng-controller="KisBpmConditionExpressionPopupCtrl">
+<div class="modal-dialog">
+<div class="modal-content">
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true" ng-click="close()">&times;</button>
+    <h2 translate>PROPERTY.SEQUENCEFLOW.CONDITION.TITLE</h2>
+</div>
+<div class="modal-body">
+
+    <div class="detail-group clearfix">
+        
+        <div class="modal-body">
+            <div class="row row-no-gutter" ng-if="translationsRetrieved && needShowGrid">
+                <div class="col-xs-6">
+                    <div class="default-grid" ng-grid="gridOptions"></div>
+                    <div class="pull-right">
+                        <!-- 
+                        <div class="btn-group">
+                            <a class="btn btn-icon btn-lg" rel="tooltip" data-title="{{'ACTION.MOVE.UP' | translate}}" data-placement="bottom" data-original-title="" title="" ng-click="movePropertyUp()"><i class="glyphicon glyphicon-arrow-up"></i></a>
+                            <a class="btn btn-icon btn-lg" rel="tooltip" data-title="{{'ACTION.MOVE.DOWN' | translate}}" data-placement="bottom" data-original-title="" title="" ng-click="movePropertyDown()"><i class="glyphicon glyphicon-arrow-down"></i></a>
+                        </div>
+                         -->
+                        <div class="btn-group">
+                            <a class="btn btn-icon btn-lg" rel="tooltip" data-title="{{'ACTION.ADD' | translate}}" data-placement="bottom" data-original-title="" title="" ng-click="addNewProperty()"><i class="glyphicon glyphicon-plus"></i></a>
+                            <a class="btn btn-icon btn-lg" rel="tooltip" data-title="{{'ACTION.REMOVE' | translate}}" data-placement="bottom" data-original-title="" title="" ng-click="removeProperty()"><i class="glyphicon glyphicon-minus"></i></a>
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="col-xs-6">
+                    <div ng-show="selectedProperties.length > 0">
+        
+                        <div class="form-group">
+                            <label for="choiceField">{{'PROPERTY.CONDITION.CHOICE' | translate}}</label>
+                            <select id="choiceField" class="form-control" ng-model="selectedProperties[0].choice" ng-change="propertyTypeChanged()" ng-options="item.id as item.name for item in choiseOperator"/>
+                        </div>
+                        <div class="form-group">
+                            <label for="compareField">{{'PROPERTY.CONDITION.COMPARE_OPERATOR' | translate}}</label>
+                            <select id="compareField" class="form-control" ng-model="selectedProperties[0].compareOperator" ng-change="propertyTypeChanged()" ng-options="item.id as item.name for item in compareOperator"/>
+                        </div>
+                        <div class="form-group">
+                            <label for="valueField">{{'PROPERTY.CONDITION.VALUE' | translate}}</label>
+                            <select id="valueField" ng-if="valueOperator[selectedProperties[0].choice].type == 'enum'" class="form-control" ng-model="selectedProperties[0].value" ng-change="propertyTypeChanged()" ng-options="item.id as item.name for item in valueOperator[selectedProperties[0].choice].value"/>
+                            <input id="valueField" ng-if="valueOperator[selectedProperties[0].choice].type == 'long'" class="form-control" type="number" step="1" ng-model="selectedProperties[0].value" ng-change="propertyTypeChanged()" required/>
+                            <input id="valueField" ng-if="valueOperator[selectedProperties[0].choice].type == 'string'" class="form-control" type="text" ng-model="selectedProperties[0].value" ng-change="propertyTypeChanged()" />
+                        </div>
+                        <div class="form-group">
+                            <label for="logicalOperatorField">{{'PROPERTY.CONDITION.LOGICAL_OPERATOR' | translate}}</label>
+                            <select id="logicalOperatorField" class="form-control" ng-model="selectedProperties[0].logicalOperator" ng-options="item.id as item.name for item in logicalOperator" placeholder="{{'PROPERTY.FORMPROPERTIES.DATEPATTERN.PLACEHOLDER' | translate }}"/>
+                        </div>
+                        <!-- 
+                        <div class="form-group" style="border: solid 5px #0e0; width:300px;">
+                            <div style="height: 100px; width: 100px; background-color: Red; float:right;">
+                                <select name="demoSelect" id="demoSelect" ng-model="selectone" ng-change="fu()" class="form-control">
+                                        <option value="c++">c++</option>
+                                        <option value="Java">Java</option>  
+                                        <option value="Html">Html</option>
+                                        <option value="Js">Js</option>
+                                    </select>
+                                    </div>
+                                    <div style="height: 100px; width: 100px; background-color: Green; ">
+                                        <input type="text" name="inputSelect" id="inputSelect" value="please choose get CM or input" class="form-control" style="width: 90%" />
+                                    </div>
+                            </div>
+                        </div>
+                         -->
+                    </div>
+                    <div ng-show="selectedProperties.length == 0" class="muted no-property-selected" translate>PROPERTY.FORMPROPERTIES.EMPTY</div>
+                </div>
+            </div>
+            <div class="row row-no-gutter" ng-if="!(translationsRetrieved && needShowGrid)">
+                {{'PROPERTY.CONDITION.NO_CONDITION_TO_SET' | translate}}
+            </div>
+        </div>
+
+        <!-- <textarea class="form-control" ng-model="conditionExpression.value" style="width:90%; height:100%; max-width: 100%; max-height: 100%; min-height: 100px"/> -->
+        <!-- 
+        <div class="form-group clearfix">
+            <div class="col-xs-12" ng-repeat="i in [0,1,2,3]">
+
+                <div class="form-inline">
+                    <div class="form-group col-xs-3">
+                        <select class="col-xs-3 form-control" ng-model="conditionColumn0Select[i]" ng-options="o.id as o.name for o in conditionColumn0"/>
+                    </div>
+                    <div class="form-group col-xs-2">
+                        <select class="col-xs-3 form-control" ng-model="conditionColumn1Select[i]" ng-options="o.id as o.name for o in conditionColumn1">
+                            <option value="">{{'PROPERTY.EDITOR.PLEASE_SELECT' | translate}}</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-xs-2">
+                        <select class="col-xs-3 form-control" ng-model="conditionColumn2Select[i]" ng-options="o.id as o.name for o in conditionColumn2">
+                            <option value="">{{'PROPERTY.EDITOR.PLEASE_SELECT' | translate}}</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-xs-2">
+                        <select class="col-xs-3 form-control" ng-model="conditionColumn3Select[i]" ng-options="o.id as o.name for o in conditionColumn3">
+                            <option value="">{{'PROPERTY.EDITOR.PLEASE_SELECT' | translate}}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div> -->
+
+    </div>
+    <div class="modal-footer">
+        <button ng-click="close()" class="btn btn-primary" translate>ACTION.CANCEL</button>
+        <button ng-if="translationsRetrieved && needShowGrid" ng-click="save()" class="btn btn-primary" translate>ACTION.SAVE</button>
+    </div>
+</div>
+</div>
+</div>
