@@ -15,6 +15,7 @@ server:
     
 #debug: true
 logging:
+  file: workflow.log
   level:
     root: warn
     com.misrobot: debug
