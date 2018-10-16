@@ -43,6 +43,7 @@ import com.misrobot.workflow.controller.request.StartProcessRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessInstanceRequest;
 import com.misrobot.workflow.controller.response.HistoryAuditRecordRespose;
+import com.misrobot.workflow.controller.response.PageableResponseBean;
 import com.misrobot.workflow.controller.response.QueryDeployedResponce;
 import com.misrobot.workflow.controller.response.QueryProcessResponce;
 import com.misrobot.workflow.controller.response.QueryTaskResponce;
@@ -64,7 +65,7 @@ public class ProcessController {
 
 	@ApiOperation("查询已部署的流程定义列表")
 	@GetMapping("queryDeployedProcessDefinition")
-	public List<QueryDeployedResponce> queryDeployedProcessDefinition(@Validated QueryDeployedRequest reqBean) throws WorkflowException {
+	public PageableResponseBean<List<QueryDeployedResponce>> queryDeployedProcessDefinition(@Validated QueryDeployedRequest reqBean) throws WorkflowException {
 		return processSv.queryDeployedProcessDefinition(reqBean);
 	}
 	
@@ -101,78 +102,97 @@ public class ProcessController {
 //	@ApiIgnore
 //	@ApiOperation("查询已启动的流程实例")
 //	@GetMapping("queryStartedProcess")
-//	public List<QueryStartedProcessResponce> queryStartedProcess(
+//	public PageableResponseBean<List<QueryStartedProcessResponce>> queryStartedProcess(
 //			@Valid QueryStartedProcessRequest reqBean) throws WorkflowException {
 //		return processSv.queryStartedProcess(reqBean);
 //	}
 
-	@ApiOperation("查询代办任务")
-	@GetMapping("queryTodoTask")
-	public List<QueryTaskResponce> queryToDoTask(@Valid QueryTaskRequest reqBean) throws WorkflowException {
-		List<QueryTaskResponce> resps = Lists.newArrayList();
-		List<Task> toDoTask = processSv.queryToDoTask(reqBean);
-		for (Task task : toDoTask) {
-			QueryTaskResponce resp = new QueryTaskResponce();
-			BeanUtils.copyProperties(task, resp);
-			resp.setTaskVariables(task.getTaskLocalVariables());
-			ProcessInstance processInstance = processSv.queryProcessInstance(task);
-			resp.setBusinessKey(processInstance.getBusinessKey());
-			resps.add(resp);
+	@ApiOperation("查询可领取的任务")
+	@GetMapping("queryCandidateTask")
+	public PageableResponseBean<List<QueryTaskResponce>> queryToDoTask(@Valid QueryTaskRequest reqBean) throws WorkflowException {
+		PageableResponseBean<List<QueryTaskResponce>> pageableResp = new PageableResponseBean<>();
+		PageableResponseBean<List<Task>> toDoTask = processSv.queryCandidateTask(reqBean);
+		
+		List<QueryTaskResponce> taskResponces = Lists.newArrayList();
+		if (toDoTask.getSize() > 0) {
+			for (Task task : toDoTask.getData()) {
+				QueryTaskResponce resp = new QueryTaskResponce();
+				BeanUtils.copyProperties(task, resp);
+				resp.setTaskVariables(task.getTaskLocalVariables());
+				ProcessInstance processInstance = processSv.queryProcessInstance(task);
+				resp.setBusinessKey(processInstance.getBusinessKey());
+				
+				taskResponces.add(resp);
+			}
 		}
-		return resps;
+		BeanUtils.copyProperties(toDoTask, pageableResp);
+		pageableResp.setData(taskResponces);
+		return pageableResp;
 	}
 	
 	@ApiOperation("查询当前用户发起的流程")
 	@GetMapping("queryInitiatedProcess")
-	public List<QueryProcessResponce> queryInitiatedProcess(@Valid QueryProcessRequest reqBean) throws WorkflowException {
-		List<HistoricProcessInstance> processInstances = processSv.queryInitiatedProcessInstance(reqBean);
+	public PageableResponseBean<List<QueryProcessResponce>> queryInitiatedProcess(@Valid QueryProcessRequest reqBean) throws WorkflowException {
+		PageableResponseBean<List<HistoricProcessInstance>> processInstances = processSv.queryInitiatedProcessInstance(reqBean);
 		List<QueryProcessResponce> resps = Lists.newArrayList();
-		for (HistoricProcessInstance processInstance : processInstances) {
-			QueryProcessResponce resp = new QueryProcessResponce();
-			BeanUtils.copyProperties(processInstance, resp);
-			resp.setProcessFinished(processInstance.getEndTime() != null);
-			
-			List<HistoricDetail> historicDetails = processSv.queryHistoricProcessVariableInstance(processInstance.getId());
-			Map<String, Object> processVariables = historicDetails.stream().map(d->(HistoricVariableUpdate)d)
-					.collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
-			resp.setProcessVariables(processVariables);
-			
-			HistoricActivityInstance activityInstance = processSv.queryLatestHistoricActivityInstance(processInstance.getId());
-			resp.setCurrentActivityName(activityInstance.getActivityName());
+		if (processInstances.getSize() > 0) {
+			for (HistoricProcessInstance processInstance : processInstances.getData()) {
+				QueryProcessResponce resp = new QueryProcessResponce();
+				BeanUtils.copyProperties(processInstance, resp);
+				resp.setProcessFinished(processInstance.getEndTime() != null);
+				
+				List<HistoricDetail> historicDetails = processSv.queryHistoricProcessVariableInstance(processInstance.getId());
+				Map<String, Object> processVariables = historicDetails.stream().map(d->(HistoricVariableUpdate)d)
+						.collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+				resp.setProcessVariables(processVariables);
+				
+				HistoricActivityInstance activityInstance = processSv.queryLatestHistoricActivityInstance(processInstance.getId());
+				resp.setCurrentActivityName(activityInstance.getActivityName());
 //			HistoricProcessInstance historicProcessInstance = processSv.queryHistoricProcessInstance(processInstance.getProcessInstanceId());
 //			resp.setTaskVariables(processInstance.getTaskLocalVariables());
-			resps.add(resp);
+				resps.add(resp);
+			}
 		}
-		return resps;
+		
+		PageableResponseBean<List<QueryProcessResponce>> pageableResponseBean = new PageableResponseBean<>();
+		BeanUtils.copyProperties(processInstances, pageableResponseBean);
+		pageableResponseBean.setData(resps);
+		return pageableResponseBean;
 	}
 	
 	@ApiOperation("查询当前用户相关的任务记录")
 	@GetMapping("queryRelatedTask")
-	public List<QueryTaskResponce> queryRelatedTask(@Valid QueryTaskRequest reqBean) throws WorkflowException {
-		List<HistoricTaskInstance> taskInstances = processSv.queryRelatedTasks(reqBean);
+	public PageableResponseBean<List<QueryTaskResponce>> queryRelatedTask(@Valid QueryTaskRequest reqBean) throws WorkflowException {
+		PageableResponseBean<List<HistoricTaskInstance>> taskInstances = processSv.queryRelatedTasks(reqBean);
 		List<QueryTaskResponce> resps = Lists.newArrayList();
-		for (HistoricTaskInstance historicTaskInstance : taskInstances) {
-			QueryTaskResponce resp = new QueryTaskResponce();
-			BeanUtils.copyProperties(historicTaskInstance, resp);
-			resp.setTaskFinished(historicTaskInstance.getEndTime() != null);
-			
-			Map<String, Object> taskVariables = processSv.queryHistoricTaskVariableInstances(historicTaskInstance.getProcessInstanceId(), historicTaskInstance.getId())
-					.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
-			resp.setTaskVariables(taskVariables);
-			
-			HistoricProcessInstance historicProcessInstance = processSv.queryHistoricProcessInstance(historicTaskInstance.getProcessInstanceId());
-			resp.setBusinessKey(historicProcessInstance.getBusinessKey());
-			resp.setProcessFinished(historicProcessInstance.getEndTime() != null);
-			resp.setProcessDefinitionKey(historicProcessInstance.getProcessDefinitionKey());
-			resp.setProcessDefinitionName(historicProcessInstance.getProcessDefinitionName());
-			
-			Map<String, Object> processInstanceVariables = processSv.queryHistoricProcessVariableInstance(historicProcessInstance.getId())
-					.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
-			resp.setProcessVariables(processInstanceVariables);
-			resp.setProcessInitiator((String)processInstanceVariables.get(Consts.PROCESS_INITIATOR));
-			resps.add(resp);
+		if (taskInstances.getSize() > 0) {
+			for (HistoricTaskInstance historicTaskInstance : taskInstances.getData()) {
+				QueryTaskResponce resp = new QueryTaskResponce();
+				BeanUtils.copyProperties(historicTaskInstance, resp);
+				resp.setTaskFinished(historicTaskInstance.getEndTime() != null);
+				
+				Map<String, Object> taskVariables = processSv.queryHistoricTaskVariableInstances(historicTaskInstance.getProcessInstanceId(), historicTaskInstance.getId())
+						.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+				resp.setTaskVariables(taskVariables);
+				
+				HistoricProcessInstance historicProcessInstance = processSv.queryHistoricProcessInstance(historicTaskInstance.getProcessInstanceId());
+				resp.setBusinessKey(historicProcessInstance.getBusinessKey());
+				resp.setProcessFinished(historicProcessInstance.getEndTime() != null);
+				resp.setProcessDefinitionKey(historicProcessInstance.getProcessDefinitionKey());
+				resp.setProcessDefinitionName(historicProcessInstance.getProcessDefinitionName());
+				
+				Map<String, Object> processInstanceVariables = processSv.queryHistoricProcessVariableInstance(historicProcessInstance.getId())
+						.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+				resp.setProcessVariables(processInstanceVariables);
+				resp.setProcessInitiator((String)processInstanceVariables.get(Consts.PROCESS_INITIATOR));
+				resps.add(resp);
+			}
 		}
-		return resps;
+		
+		PageableResponseBean<List<QueryTaskResponce>> pageableResponseBean = new PageableResponseBean<>();
+		BeanUtils.copyProperties(taskInstances, pageableResponseBean);
+		pageableResponseBean.setData(resps);
+		return pageableResponseBean;
 	}
 
 	@ApiOperation("获取任务可驳回的节点")
@@ -264,13 +284,13 @@ public class ProcessController {
 
 	@ApiOperation("获取流程的历史审核记录")
 	@GetMapping(value = "queryHistoryAuditRecords")
-	public List<HistoryAuditRecordRespose> queryHistoryAuditRecords(HistoryAuditRecordRequest req) {
+	public PageableResponseBean<List<HistoryAuditRecordRespose>> queryHistoryAuditRecords(HistoryAuditRecordRequest req) {
 		List<HistoryAuditRecordRespose> resps = Lists.newArrayList();
 		
-		List<HistoricTaskInstance> historyAuditRecords = processSv.queryHistoryAuditRecords(req);
-		if (historyAuditRecords != null) {
+		PageableResponseBean<List<HistoricTaskInstance>> historyAuditRecords = processSv.queryHistoryAuditRecords(req);
+		if (historyAuditRecords.getSize() > 0) {
 			Map<String, Object> processVariables = null;
-			for (HistoricTaskInstance instance : historyAuditRecords) {
+			for (HistoricTaskInstance instance : historyAuditRecords.getData()) {
 				HistoryAuditRecordRespose resp = new HistoryAuditRecordRespose();
 				BeanUtils.copyProperties(instance, resp);
 					
@@ -288,6 +308,9 @@ public class ProcessController {
 			}
 		}
 		
-		return resps;
+		PageableResponseBean<List<HistoryAuditRecordRespose>> pageableResponseBean = new PageableResponseBean<>();
+		BeanUtils.copyProperties(historyAuditRecords, pageableResponseBean);
+		pageableResponseBean.setData(resps);
+		return pageableResponseBean;
 	}
 }

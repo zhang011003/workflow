@@ -42,11 +42,7 @@ public class ResponseAdviceConfig implements ResponseBodyAdvice<Object> {
 					.filter(uniformRequest->substringURL.startsWith(uniformRequest)).findAny();
 			if (optional.isPresent()) {
 				CommonResponceBean resp = new CommonResponceBean();
-				if (body instanceof List) {
-					List<?> list = (List<?>)body;
-					resp.setCount(list.size());
-					resp.setData(body);
-				} else if (body != null) {
+				if (body != null) {
 					if (!(body instanceof CommonResponceBean)) {
 						resp.setData(body);
 					} else {

@@ -23,6 +23,7 @@ import com.misrobot.workflow.controller.request.RejectTaskRequest;
 import com.misrobot.workflow.controller.request.StartProcessRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessInstanceRequest;
+import com.misrobot.workflow.controller.response.PageableResponseBean;
 import com.misrobot.workflow.controller.response.QueryDeployedResponce;
 import com.misrobot.workflow.controller.response.RejectTaskNode;
 import com.misrobot.workflow.exception.WorkflowException;
@@ -36,7 +37,7 @@ public interface ProcessService {
 	/**
 	 * 已部署流程列表
 	 */
-	public List<QueryDeployedResponce> queryDeployedProcessDefinition(QueryDeployedRequest reqBean);
+	public PageableResponseBean<List<QueryDeployedResponce>> queryDeployedProcessDefinition(QueryDeployedRequest reqBean);
 	
 	/**
 	 * 挂起流程定义
@@ -72,21 +73,21 @@ public interface ProcessService {
 //	/**
 //	 * 所有指定条件的流程实例
 //	 */
-//	public List<QueryStartedProcessResponce> queryStartedProcess(QueryStartedProcessRequest reqBean) ;
+//	public PageableResponseBean<List<QueryStartedProcessResponce>> queryStartedProcess(QueryStartedProcessRequest reqBean) ;
 
 	/**
 	 * 查询用户的代办任务。该任务还不属于用户
 	 * @param reqBean
 	 * @return
 	 */
-	public List<Task> queryToDoTask(QueryTaskRequest reqBean);
+	public PageableResponseBean<List<Task>> queryCandidateTask(QueryTaskRequest reqBean);
 	
 	public ProcessInstance queryProcessInstance(Task task);
 	
 	/**
 	 * 查询用户发起的流程
 	 */
-	public List<HistoricProcessInstance> queryInitiatedProcessInstance(QueryProcessRequest reqBean) ;
+	public PageableResponseBean<List<HistoricProcessInstance>> queryInitiatedProcessInstance(QueryProcessRequest reqBean) ;
 
 	public HistoricActivityInstance queryLatestHistoricActivityInstance(String processInstanceId);
 	
@@ -95,7 +96,7 @@ public interface ProcessService {
 	 * @param reqBean
 	 * @return
 	 */
-	public List<HistoricTaskInstance> queryRelatedTasks(QueryTaskRequest reqBean);
+	public PageableResponseBean<List<HistoricTaskInstance>> queryRelatedTasks(QueryTaskRequest reqBean);
 	
 	public HistoricProcessInstance queryHistoricProcessInstance(String processInstanceId);
 	
@@ -147,7 +148,7 @@ public interface ProcessService {
 	 * @param req
 	 * @return
 	 */
-	List<HistoricTaskInstance> queryHistoryAuditRecords(HistoryAuditRecordRequest req);
+	PageableResponseBean<List<HistoricTaskInstance>> queryHistoryAuditRecords(HistoryAuditRecordRequest req);
 
 	/**
 	 * 查询任务的历史变量。无法直接通过taskId查找变量，只能传两个参数查找

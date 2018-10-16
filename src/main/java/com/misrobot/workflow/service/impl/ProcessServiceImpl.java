@@ -52,6 +52,7 @@ import com.misrobot.workflow.controller.request.RejectTaskRequest;
 import com.misrobot.workflow.controller.request.StartProcessRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessInstanceRequest;
+import com.misrobot.workflow.controller.response.PageableResponseBean;
 import com.misrobot.workflow.controller.response.QueryDeployedResponce;
 import com.misrobot.workflow.controller.response.RejectTaskNode;
 import com.misrobot.workflow.exception.ErrorCode;
@@ -112,7 +113,7 @@ public class ProcessServiceImpl implements ProcessService {
 		}
 	}
 
-//	public List<QueryStartedProcessResponce> queryStartedProcess(QueryStartedProcessRequest reqBean) {
+//	public PageableResponseBean<List<QueryStartedProcessResponce>> queryStartedProcess(QueryStartedProcessRequest reqBean) {
 //
 //		//
 //		ProcessInstanceQuery processQuery = runtimeService.createProcessInstanceQuery();
@@ -160,7 +161,7 @@ public class ProcessServiceImpl implements ProcessService {
 	/*
 	 * 已部署流程列表
 	 */
-	public List<QueryDeployedResponce> queryDeployedProcessDefinition(QueryDeployedRequest reqBean) {
+	public PageableResponseBean<List<QueryDeployedResponce>> queryDeployedProcessDefinition(QueryDeployedRequest reqBean) {
 		
 		ProcessDefinitionQuery defQuery = repositoryService.createProcessDefinitionQuery();
 //		// 多租户模式
@@ -176,7 +177,11 @@ public class ProcessServiceImpl implements ProcessService {
 		long count = defQuery.count();
 		List<QueryDeployedResponce> resBodyList = Lists.newArrayList();
 		
+		PageableResponseBean<List<QueryDeployedResponce>> resp = new PageableResponseBean<>();
+		
 		if (count > 0) {
+			resp.setTotalSize(count);
+			
 			defQuery.orderByProcessDefinitionVersion();
 			defQuery.desc();
 
@@ -184,6 +189,7 @@ public class ProcessServiceImpl implements ProcessService {
 					getFirstResult(reqBean.getPage(), reqBean.getSize()), getMaxResult(reqBean.getSize()));
 			
 			if (list != null) {
+				resp.setSize(list.size());
 				for (int i = 0; i < list.size(); i++) {
 					ProcessDefinition def = list.get(i);
 					if (def == null) {
@@ -196,8 +202,8 @@ public class ProcessServiceImpl implements ProcessService {
 			}
 
 		}
-
-		return resBodyList;
+		resp.setData(resBodyList);
+		return resp;
 
 	}
 
@@ -312,13 +318,14 @@ public class ProcessServiceImpl implements ProcessService {
 	}
 
 	@Override
-	public List<Task> queryToDoTask(QueryTaskRequest reqBean) {
+	public PageableResponseBean<List<Task>> queryCandidateTask(QueryTaskRequest reqBean) {
 		// TODO: 根据登录用户名查询用户所属组
 		TaskQuery taskQuery = taskService.createTaskQuery().or()
 				.taskCandidateGroupIn(Lists.newArrayList()).taskCandidateUser("")
 				.endOr()
 				.processDefinitionKey(reqBean.getProcessDefinitionKey()).taskTenantId(reqBean.getSystemCode());
-		return taskQuery.listPage(getFirstResult(reqBean.getPage(), reqBean.getSize()), getMaxResult(reqBean.getSize()));
+		List<Task> tasks = taskQuery.listPage(getFirstResult(reqBean.getPage(), reqBean.getSize()), getMaxResult(reqBean.getSize()));
+		return constructRespBean(taskQuery.count(), tasks);
 	}
 	
 	@Override
@@ -326,7 +333,7 @@ public class ProcessServiceImpl implements ProcessService {
 		return runtimeService.createProcessInstanceQuery().active().processDefinitionId(task.getProcessDefinitionId()).singleResult();
 	}
 	
-	public List<HistoricProcessInstance> queryInitiatedProcessInstance(QueryProcessRequest reqBean) {
+	public PageableResponseBean<List<HistoricProcessInstance>> queryInitiatedProcessInstance(QueryProcessRequest reqBean) {
 		// TODO: 根据登录用户名查询
 		HistoricProcessInstanceQuery processInstanceQuery = historyService.createHistoricProcessInstanceQuery()
 				.processInstanceTenantId(reqBean.getSystemCode())
@@ -336,8 +343,21 @@ public class ProcessServiceImpl implements ProcessService {
 			processInstanceQuery = processInstanceQuery.processDefinitionKey(reqBean.getProcessDefinitionKey());
 		}
 		
-		return processInstanceQuery.listPage(getFirstResult(reqBean.getPage(), reqBean.getSize()), 
-					getMaxResult(reqBean.getSize()));
+		List<HistoricProcessInstance> processInstances = processInstanceQuery.listPage(
+				getFirstResult(reqBean.getPage(), reqBean.getSize()), getMaxResult(reqBean.getSize()));
+		
+		return constructRespBean(processInstanceQuery.count(), processInstances);
+	}
+	
+	private <T> PageableResponseBean<List<T>> constructRespBean(long totalSize, List<T> data) {
+		PageableResponseBean<List<T>> resp = new PageableResponseBean<>();
+		
+		if (totalSize > 0) {
+			resp.setTotalSize(totalSize);
+			resp.setSize(data.size());
+			resp.setData(data);
+		}
+		return resp;
 	}
 	
 	@Override
@@ -355,7 +375,7 @@ public class ProcessServiceImpl implements ProcessService {
 	}
 	
 	@Override
-	public List<HistoricTaskInstance> queryRelatedTasks(QueryTaskRequest reqBean) {
+	public PageableResponseBean<List<HistoricTaskInstance>> queryRelatedTasks(QueryTaskRequest reqBean) {
 		// TODO: 根据登录用户名查询
 		HistoricTaskInstanceQuery query = historyService.createHistoricTaskInstanceQuery()
 				.taskTenantId(reqBean.getSystemCode())
@@ -364,8 +384,9 @@ public class ProcessServiceImpl implements ProcessService {
 		if (StringUtils.hasText(reqBean.getProcessDefinitionKey())) {
 			query = query.processDefinitionKey(reqBean.getProcessDefinitionKey());
 		}
-		
-		return query.orderByTaskCreateTime().asc().listPage(getFirstResult(reqBean.getPage(), reqBean.getSize()),getMaxResult(reqBean.getSize()));
+		List<HistoricTaskInstance> taskInstances = query.orderByTaskCreateTime().asc().listPage(
+				getFirstResult(reqBean.getPage(), reqBean.getSize()),getMaxResult(reqBean.getSize()));
+		return constructRespBean(query.count(), taskInstances);
 	}
 	
 	@Override
@@ -669,11 +690,14 @@ public class ProcessServiceImpl implements ProcessService {
 	}
 	
 	@Override
-	public List<HistoricTaskInstance> queryHistoryAuditRecords(HistoryAuditRecordRequest req) {
-		return historyService.createHistoricTaskInstanceQuery()
-				.taskTenantId(req.getSystemCode()).processInstanceId(req.getProcessInstanceId())
-				.finished().orderByHistoricTaskInstanceEndTime().asc()
-				.listPage(getFirstResult(req.getPage(), req.getSize()), getMaxResult(req.getSize()));
+	public PageableResponseBean<List<HistoricTaskInstance>> queryHistoryAuditRecords(HistoryAuditRecordRequest req) {
+		HistoricTaskInstanceQuery query = historyService.createHistoricTaskInstanceQuery()
+			.taskTenantId(req.getSystemCode()).processInstanceId(req.getProcessInstanceId())
+			.finished().orderByHistoricTaskInstanceEndTime().asc();
+		
+		List<HistoricTaskInstance> taskInstances = query.listPage(getFirstResult(req.getPage(), req.getSize()), getMaxResult(req.getSize()));
+		
+		return constructRespBean(query.count(), taskInstances);
 	}
 	
 	@Override
