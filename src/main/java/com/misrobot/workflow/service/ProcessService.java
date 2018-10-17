@@ -4,14 +4,15 @@ import java.io.InputStream;
 import java.util.List;
 
 import org.activiti.engine.history.HistoricActivityInstance;
-import org.activiti.engine.history.HistoricDetail;
 import org.activiti.engine.history.HistoricProcessInstance;
 import org.activiti.engine.history.HistoricTaskInstance;
+import org.activiti.engine.history.HistoricVariableUpdate;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
 
 import com.misrobot.workflow.controller.request.ActiveProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.ActiveProcessInstanceRequest;
+import com.misrobot.workflow.controller.request.CancelProcessRequest;
 import com.misrobot.workflow.controller.request.ClaimTaskRequest;
 import com.misrobot.workflow.controller.request.CompleteTaskRequest;
 import com.misrobot.workflow.controller.request.GetProcessGraphicsRequest;
@@ -23,6 +24,7 @@ import com.misrobot.workflow.controller.request.RejectTaskRequest;
 import com.misrobot.workflow.controller.request.StartProcessRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessInstanceRequest;
+import com.misrobot.workflow.controller.request.WithdrawTaskRequest;
 import com.misrobot.workflow.controller.response.PageableResponseBean;
 import com.misrobot.workflow.controller.response.QueryDeployedResponce;
 import com.misrobot.workflow.controller.response.RejectTaskNode;
@@ -155,12 +157,42 @@ public interface ProcessService {
 	 * @param instance
 	 * @return
 	 */
-	List<HistoricDetail> queryHistoricTaskVariableInstances(String processInstanceId, String taskId);
+	List<HistoricVariableUpdate> queryHistoricTaskVariableInstances(String processInstanceId, String taskId);
 
 	/**
 	 * 查询流程实例的历史变量（启动流程的变量）
 	 * @param processInstanceId
 	 * @return
 	 */
-	List<HistoricDetail> queryHistoricProcessVariableInstance(String processInstanceId);
+	List<HistoricVariableUpdate> queryHistoricProcessVariableInstance(String processInstanceId);
+
+	/**
+	 * 撤回任务实例
+	 * @param req
+	 * @throws WorkflowException
+	 */
+	void withdrawTask(WithdrawTaskRequest req) throws WorkflowException;
+
+	/**
+	 * 任务是否可被撤回
+	 * @param req
+	 * @return
+	 * @throws WorkflowException
+	 */
+	boolean canWithdrawTask(WithdrawTaskRequest req) throws WorkflowException;
+	
+	/**
+	 * 撤销流程实例
+	 * @param req
+	 * @throws WorkflowException
+	 */
+	void cancelProcessInstance(CancelProcessRequest req) throws WorkflowException;
+	
+	/**
+	 * 流程实例是否可被撤销
+	 * @param req
+	 * @return
+	 * @throws WorkflowException
+	 */
+	boolean canCancelProcessInstance(CancelProcessRequest req) throws WorkflowException;
 }

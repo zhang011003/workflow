@@ -16,16 +16,17 @@ import org.activiti.engine.RepositoryService;
 import org.activiti.engine.RuntimeService;
 import org.activiti.engine.TaskService;
 import org.activiti.engine.history.HistoricActivityInstance;
-import org.activiti.engine.history.HistoricDetail;
 import org.activiti.engine.history.HistoricProcessInstance;
 import org.activiti.engine.history.HistoricProcessInstanceQuery;
 import org.activiti.engine.history.HistoricTaskInstance;
 import org.activiti.engine.history.HistoricTaskInstanceQuery;
+import org.activiti.engine.history.HistoricVariableUpdate;
 import org.activiti.engine.impl.RepositoryServiceImpl;
 import org.activiti.engine.impl.pvm.PvmActivity;
 import org.activiti.engine.impl.pvm.PvmTransition;
 import org.activiti.engine.impl.pvm.ReadOnlyProcessDefinition;
 import org.activiti.engine.impl.pvm.process.ActivityImpl;
+import org.activiti.engine.impl.pvm.process.ProcessDefinitionImpl;
 import org.activiti.engine.impl.pvm.process.TransitionImpl;
 import org.activiti.engine.repository.ProcessDefinition;
 import org.activiti.engine.repository.ProcessDefinitionQuery;
@@ -41,6 +42,7 @@ import com.misrobot.workflow.common.BeanUtils;
 import com.misrobot.workflow.common.Consts;
 import com.misrobot.workflow.controller.request.ActiveProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.ActiveProcessInstanceRequest;
+import com.misrobot.workflow.controller.request.CancelProcessRequest;
 import com.misrobot.workflow.controller.request.ClaimTaskRequest;
 import com.misrobot.workflow.controller.request.CompleteTaskRequest;
 import com.misrobot.workflow.controller.request.GetProcessGraphicsRequest;
@@ -52,11 +54,14 @@ import com.misrobot.workflow.controller.request.RejectTaskRequest;
 import com.misrobot.workflow.controller.request.StartProcessRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.SuspendProcessInstanceRequest;
+import com.misrobot.workflow.controller.request.WithdrawTaskRequest;
 import com.misrobot.workflow.controller.response.PageableResponseBean;
 import com.misrobot.workflow.controller.response.QueryDeployedResponce;
 import com.misrobot.workflow.controller.response.RejectTaskNode;
 import com.misrobot.workflow.exception.ErrorCode;
 import com.misrobot.workflow.exception.WorkflowException;
+import com.misrobot.workflow.model.WfTaskwithdrawSetting;
+import com.misrobot.workflow.repository.WfTaskwithdrawSettingRepository;
 import com.misrobot.workflow.service.ProcessService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -79,7 +84,10 @@ public class ProcessServiceImpl implements ProcessService {
 
 	@Autowired
 	private HistoryService historyService;
-
+	
+	@Autowired
+	private WfTaskwithdrawSettingRepository taskwithdrawSettingRepository;
+	
 	private int getMaxResult(Integer size) {
 		if (size != null && size >= 1) {
 			return size;
@@ -365,7 +373,7 @@ public class ProcessServiceImpl implements ProcessService {
 		List<HistoricActivityInstance> activityInstances = historyService.createHistoricActivityInstanceQuery()
 				.processInstanceId(processInstanceId).orderByHistoricActivityInstanceStartTime().desc().list();
 		if (activityInstances != null && activityInstances.size() > 0) {
-			Optional<HistoricActivityInstance> optional = activityInstances.stream().filter(i->i.getAssignee() != null).findFirst();
+			Optional<HistoricActivityInstance> optional = activityInstances.stream().findFirst();
 			if (optional.isPresent()) {
 				return optional.get();
 			}
@@ -575,13 +583,75 @@ public class ProcessServiceImpl implements ProcessService {
 	}
 
 	/**
-	 * 获取当然的活动节点
+	 * 获取当前的活动节点
 	 * @param task
 	 * @return
 	 */
 	private PvmActivity getCurrentPvmActivity(Task task) {
 		ReadOnlyProcessDefinition deployedProcessDefinition = ((RepositoryServiceImpl)repositoryService).getDeployedProcessDefinition(task.getProcessDefinitionId());
 		return deployedProcessDefinition.findActivity(task.getTaskDefinitionKey());
+	}
+	
+	/**
+	 * 获取当前的活动节点
+	 * @param task
+	 * @return
+	 */
+	private PvmActivity getCurrentPvmActivity(ProcessInstance processInstance) {
+		ReadOnlyProcessDefinition deployedProcessDefinition = ((RepositoryServiceImpl)repositoryService).getDeployedProcessDefinition(processInstance.getProcessDefinitionId());
+		return deployedProcessDefinition.findActivity(processInstance.getActivityId());
+	}
+	
+	/**
+	 * 获取启动节点
+	 * @param task
+	 * @return
+	 */
+	private PvmActivity getStartPvmActivity(String processDefinitionId) {
+		ReadOnlyProcessDefinition deployedProcessDefinition = ((RepositoryServiceImpl)repositoryService).getDeployedProcessDefinition(processDefinitionId);
+		return deployedProcessDefinition.getActivities().stream()
+				.filter(a->a.getProperty("type").equals(BpmnXMLConstants.ELEMENT_EVENT_START)).findAny().get();
+	}
+	
+	/**
+	 * 获取结束节点
+	 * @param task
+	 * @return
+	 */
+	private PvmActivity getEndPvmActivity(String processDefinitionId) {
+		ReadOnlyProcessDefinition deployedProcessDefinition = ((RepositoryServiceImpl)repositoryService).getDeployedProcessDefinition(processDefinitionId);
+		return deployedProcessDefinition.getActivities().stream()
+				.filter(a->a.getProperty("type").equals(BpmnXMLConstants.ELEMENT_EVENT_END)).findAny().get();
+	}
+	
+	/**
+	 * 获取指定节点的直接后续节点
+	 * @param startNode
+	 * @param nodeType
+	 * @return
+	 */
+	private List<PvmActivity> getOutgoingPvmActivity(PvmActivity startNode, List<String> nodeType) {
+		Map<Boolean, List<PvmActivity>> map = startNode.getOutgoingTransitions().stream().map(t->t.getDestination()).collect(Collectors.partitioningBy(a->nodeType.contains(a.getProperty("type"))));
+		List<PvmActivity> outgoingPvmActivities = Lists.newArrayList(map.get(Boolean.TRUE));
+		for (PvmActivity pvmActivity : map.get(Boolean.FALSE)) {
+			outgoingPvmActivities.addAll(getOutgoingPvmActivity(pvmActivity, nodeType));
+		}
+		return outgoingPvmActivities;
+	}
+	
+	/**
+	 * 获取指定节点的直接前置节点
+	 * @param startNode
+	 * @param nodeType
+	 * @return
+	 */
+	private List<PvmActivity> getIncomingPvmActivity(PvmActivity startNode, List<String> nodeType) {
+		Map<Boolean, List<PvmActivity>> map = startNode.getIncomingTransitions().stream().map(t->t.getDestination()).collect(Collectors.partitioningBy(a->nodeType.contains(a.getProperty("type"))));
+		List<PvmActivity> incomingPvmActivities = Lists.newArrayList(map.get(Boolean.TRUE));
+		for (PvmActivity pvmActivity : map.get(Boolean.FALSE)) {
+			incomingPvmActivities.addAll(getIncomingPvmActivity(pvmActivity, nodeType));
+		}
+		return incomingPvmActivities;
 	}
 	
 //	/**
@@ -640,7 +710,7 @@ public class ProcessServiceImpl implements ProcessService {
 		// TODO:需要判断是否任务支持选择驳回节点
 		List<PvmActivity> routeNodeToReject = getAllValidRouteNodeToReject(task);
 		
-		rejectTask0(task, (ActivityImpl) routeNodeToReject.get(0), req.getProcessVariables());
+		completeTaskToNode(task, (ActivityImpl) routeNodeToReject.get(0), req.getProcessVariables());
 	}
 	
 	@Override
@@ -659,11 +729,11 @@ public class ProcessServiceImpl implements ProcessService {
 		
 		ActivityImpl pvmActivity = (ActivityImpl) any.get();
 		
-		rejectTask0(task, pvmActivity, req.getProcessVariables());
+		completeTaskToNode(task, pvmActivity, req.getProcessVariables());
 		
 	}
 	
-	private void rejectTask0(Task task, ActivityImpl rejectToNode, Map<String, String> processVariables) {
+	private void completeTaskToNode(Task task, ActivityImpl destinationNode, Map<String, String> processVariables) {
 		ActivityImpl currentPvmActivity = (ActivityImpl) getCurrentPvmActivity(task);
 		
 		// 保存当前节点的输出流程
@@ -675,7 +745,7 @@ public class ProcessServiceImpl implements ProcessService {
 		
 		// 创建新流程
 		TransitionImpl newTransition = currentPvmActivity.createOutgoingTransition();
-		newTransition.setDestination(rejectToNode);
+		newTransition.setDestination(destinationNode);
 		
 		Map<String, Object> variables = new HashMap<String, Object>();
 		if (processVariables != null) {
@@ -701,24 +771,134 @@ public class ProcessServiceImpl implements ProcessService {
 	}
 	
 	@Override
-	public List<HistoricDetail> queryHistoricTaskVariableInstances(String processInstanceId, String taskId) {
+	public List<HistoricVariableUpdate> queryHistoricTaskVariableInstances(String processInstanceId, String taskId) {
 		Optional<HistoricActivityInstance> optional = historyService.createHistoricActivityInstanceQuery()
 				.processInstanceId(processInstanceId).list().stream().filter(i->taskId.equals(i.getTaskId())).findAny();
 		if (optional.isPresent()) {
-			return historyService.createHistoricDetailQuery().activityInstanceId(optional.get().getId()).list();
+			return historyService.createHistoricDetailQuery().activityInstanceId(optional.get().getId()).list()
+					.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toList());
 		}
 		
 		return Lists.newArrayList();
 	}
 	
 	@Override
-	public List<HistoricDetail> queryHistoricProcessVariableInstance(String processInstanceId) {
+	public List<HistoricVariableUpdate> queryHistoricProcessVariableInstance(String processInstanceId) {
 		HistoricActivityInstance activityInstance = historyService.createHistoricActivityInstanceQuery()
 				.activityType(BpmnXMLConstants.ELEMENT_EVENT_START).processInstanceId(processInstanceId).singleResult();
 		if (activityInstance != null) {
-			return historyService.createHistoricDetailQuery().activityInstanceId(activityInstance.getId()).list();
+			return historyService.createHistoricDetailQuery().activityInstanceId(activityInstance.getId()).list()
+					.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toList());
 		} 
 		
 		return Lists.newArrayList();
+	}
+	
+	@Override
+	public boolean canWithdrawTask(WithdrawTaskRequest req) throws WorkflowException {
+//		Task task = taskService.createTaskQuery().taskId(req.getTaskId()).singleResult();
+//		if (task == null) {
+//			throw new WorkflowException(ErrorCode.CANNOT_FIND_TASK_RECORD, req.getTaskId());
+//		}
+//		
+//		ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionId(task.getProcessDefinitionId()).singleResult();
+//		
+//		Optional<WfTaskwithdrawSetting> optional = taskwithdrawSettingRepository.findByProcessDefinitionId(processDefinition.getId());
+//		if (!optional.isPresent()) {
+//			throw new WorkflowException(ErrorCode.TASK_NOT_SUPPORT_WITHDRAW, req.getTaskId());
+//		}
+//		
+//		WfTaskwithdrawSetting taskwithdrawSetting = optional.get();
+//		if (taskwithdrawSetting.getWithdraw() == Consts.TaskWithdrawSupport.NO.getValue()) {
+//			throw new WorkflowException(ErrorCode.TASK_NOT_SUPPORT_WITHDRAW, req.getTaskId());
+//		} else if (Consts.TaskWithdrawType.FIRST_NODE.equals(taskwithdrawSetting.getWithdrawType())) {
+//			PvmActivity currentPvmActivity = getCurrentPvmActivity(task);
+//			
+//			// 前一个用户任务节点
+//			List<PvmActivity> incomingPvmActivities = getIncomingPvmActivity(currentPvmActivity, Lists.newArrayList(BpmnXMLConstants.ELEMENT_TASK_USER));
+//			
+//			
+//			
+//			// 都没有匹配到当前节点
+//			if (!incomingPvmActivities.stream().anyMatch(a->a.equals(currentPvmActivity))) {
+//				throw new WorkflowException(ErrorCode.PROCESS_CANNOT_WITHDRAW, req.getTaskId());
+//			} 
+//		}
+		return false;
+	}
+	
+	@Override
+	public void withdrawTask(WithdrawTaskRequest req) throws WorkflowException {
+		if (!canWithdrawTask(req)) {
+			return;
+		}
+		
+//		Task task = taskService.createTaskQuery().taskId(req.getTaskId()).taskTenantId(req.getSystemCode()).singleResult();
+//		ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionId(task.getProcessDefinitionId()).singleResult();
+//		
+//		Optional<WfTaskwithdrawSetting> optional = taskwithdrawSettingRepository.findByProcessDefinitionId(processDefinition.getId());
+//		
+//		ActivityImpl withdrawNode = new ActivityImpl(Consts.WITHDRAW_NODE_ID, (ProcessDefinitionImpl) processDefinition);
+//		withdrawNode.setProperty("name", optional.get().getNodeName());
+//		
+//		completeTaskToNode(task, withdrawNode, req.getProcessVariables());
+	}
+	
+	@Override
+	public boolean canCancelProcessInstance(CancelProcessRequest req) throws WorkflowException {
+		ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(req.getProcessInstanceId()).singleResult();
+		if (processInstance == null) {
+			throw new WorkflowException(ErrorCode.CANNOT_FIND_PROCESS_INSTANCE, req.getProcessInstanceId());
+		} 
+		
+		// TODO: 需要修改为传入登录用户名
+		// 用户无法撤销非自己创建的流程
+		Optional<HistoricVariableUpdate> variableOptional = queryHistoricProcessVariableInstance(processInstance.getId()).stream().filter(u->u.getVariableName().equals(Consts.PROCESS_INITIATOR)).findFirst();
+		if (!variableOptional.isPresent() || !variableOptional.get().getValue().equals(req.getUser())) {
+			throw new WorkflowException(ErrorCode.PROCESS_CANNOT_CANCEL_BY_CURRENT_USER, req.getUser());
+		}
+		
+		ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionId(processInstance.getProcessDefinitionId()).singleResult();
+		
+		Optional<WfTaskwithdrawSetting> optional = taskwithdrawSettingRepository.findByProcessDefinitionId(processDefinition.getId());
+		if (!optional.isPresent()) {
+			throw new WorkflowException(ErrorCode.PROCESS_NOT_SUPPORT_CANCEL, req.getProcessInstanceId());
+		}
+		
+		WfTaskwithdrawSetting taskwithdrawSetting = optional.get();
+		if (taskwithdrawSetting.getWithdraw() == Consts.TaskWithdrawSupport.NO.getValue()) {
+			throw new WorkflowException(ErrorCode.PROCESS_NOT_SUPPORT_CANCEL, req.getProcessInstanceId());
+		} else if (Consts.TaskWithdrawType.FIRST_NODE.toString().equals(taskwithdrawSetting.getWithdrawType())) {
+			PvmActivity currentPvmActivity = getCurrentPvmActivity(processInstance);
+			
+			PvmActivity startPvmActivity = getStartPvmActivity(processInstance.getProcessDefinitionId());
+			
+			// 第一个用户任务节点
+			List<PvmActivity> outgoingPvmActivities = getOutgoingPvmActivity(startPvmActivity, Lists.newArrayList(BpmnXMLConstants.ELEMENT_TASK_USER));
+			
+			// 都没有匹配到当前节点
+			if (!outgoingPvmActivities.stream().anyMatch(a->a.equals(currentPvmActivity))) {
+				throw new WorkflowException(ErrorCode.PROCESS_CANNOT_CANCEL, req.getProcessInstanceId());
+			} 
+		}
+		return true;
+	}
+	
+	@Override
+	public void cancelProcessInstance(CancelProcessRequest req) throws WorkflowException {
+		if (!canCancelProcessInstance(req)) {
+			return;
+		}
+		
+		ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(req.getProcessInstanceId()).singleResult();
+		ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionId(processInstance.getProcessDefinitionId()).singleResult();
+		
+		Optional<WfTaskwithdrawSetting> optional = taskwithdrawSettingRepository.findByProcessDefinitionId(processDefinition.getId());
+		
+		ActivityImpl withdrawNode = (ActivityImpl) getEndPvmActivity(processDefinition.getId());
+		withdrawNode.setProperty("name", optional.get().getNodeName());
+		
+		Task task = taskService.createTaskQuery().processInstanceId(req.getProcessInstanceId()).singleResult();
+		completeTaskToNode(task, withdrawNode, req.getProcessVariables());
 	}
 }

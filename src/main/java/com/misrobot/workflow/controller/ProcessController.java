@@ -10,7 +10,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 
 import org.activiti.engine.history.HistoricActivityInstance;
-import org.activiti.engine.history.HistoricDetail;
 import org.activiti.engine.history.HistoricProcessInstance;
 import org.activiti.engine.history.HistoricTaskInstance;
 import org.activiti.engine.history.HistoricVariableUpdate;
@@ -31,6 +30,7 @@ import com.misrobot.workflow.common.BeanUtils;
 import com.misrobot.workflow.common.Consts;
 import com.misrobot.workflow.controller.request.ActiveProcessDefinitionRequest;
 import com.misrobot.workflow.controller.request.ActiveProcessInstanceRequest;
+import com.misrobot.workflow.controller.request.CancelProcessRequest;
 import com.misrobot.workflow.controller.request.ClaimTaskRequest;
 import com.misrobot.workflow.controller.request.CompleteTaskRequest;
 import com.misrobot.workflow.controller.request.GetProcessGraphicsRequest;
@@ -109,7 +109,7 @@ public class ProcessController {
 
 	@ApiOperation("查询可领取的任务")
 	@GetMapping("queryCandidateTask")
-	public PageableResponseBean<List<QueryTaskResponce>> queryToDoTask(@Valid QueryTaskRequest reqBean) throws WorkflowException {
+	public PageableResponseBean<List<QueryTaskResponce>> queryCandidateTask(@Valid QueryTaskRequest reqBean) throws WorkflowException {
 		PageableResponseBean<List<QueryTaskResponce>> pageableResp = new PageableResponseBean<>();
 		PageableResponseBean<List<Task>> toDoTask = processSv.queryCandidateTask(reqBean);
 		
@@ -141,9 +141,8 @@ public class ProcessController {
 				BeanUtils.copyProperties(processInstance, resp);
 				resp.setProcessFinished(processInstance.getEndTime() != null);
 				
-				List<HistoricDetail> historicDetails = processSv.queryHistoricProcessVariableInstance(processInstance.getId());
-				Map<String, Object> processVariables = historicDetails.stream().map(d->(HistoricVariableUpdate)d)
-						.collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+				List<HistoricVariableUpdate> historicVariableUpdates = processSv.queryHistoricProcessVariableInstance(processInstance.getId());
+				Map<String, Object> processVariables = historicVariableUpdates.stream().collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
 				resp.setProcessVariables(processVariables);
 				
 				HistoricActivityInstance activityInstance = processSv.queryLatestHistoricActivityInstance(processInstance.getId());
@@ -172,7 +171,7 @@ public class ProcessController {
 				resp.setTaskFinished(historicTaskInstance.getEndTime() != null);
 				
 				Map<String, Object> taskVariables = processSv.queryHistoricTaskVariableInstances(historicTaskInstance.getProcessInstanceId(), historicTaskInstance.getId())
-						.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+						.stream().collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
 				resp.setTaskVariables(taskVariables);
 				
 				HistoricProcessInstance historicProcessInstance = processSv.queryHistoricProcessInstance(historicTaskInstance.getProcessInstanceId());
@@ -182,7 +181,7 @@ public class ProcessController {
 				resp.setProcessDefinitionName(historicProcessInstance.getProcessDefinitionName());
 				
 				Map<String, Object> processInstanceVariables = processSv.queryHistoricProcessVariableInstance(historicProcessInstance.getId())
-						.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+						.stream().collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
 				resp.setProcessVariables(processInstanceVariables);
 				resp.setProcessInitiator((String)processInstanceVariables.get(Consts.PROCESS_INITIATOR));
 				resps.add(resp);
@@ -295,12 +294,12 @@ public class ProcessController {
 				BeanUtils.copyProperties(instance, resp);
 					
 				Map<String, Object> taskVariables = processSv.queryHistoricTaskVariableInstances(instance.getProcessInstanceId(), instance.getId())
-						.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+						.stream().collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
 				resp.setTaskVariables(taskVariables);
 				
 				if (processVariables == null) {
 					processVariables = processSv.queryHistoricProcessVariableInstance(instance.getProcessInstanceId())
-							.stream().map(t->(HistoricVariableUpdate)t).collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
+							.stream().collect(Collectors.toMap(HistoricVariableUpdate::getVariableName, HistoricVariableUpdate::getValue));
 				}
 				resp.setProcessVariables(processVariables);
 				
@@ -312,5 +311,17 @@ public class ProcessController {
 		BeanUtils.copyProperties(historyAuditRecords, pageableResponseBean);
 		pageableResponseBean.setData(resps);
 		return pageableResponseBean;
+	}
+	
+	@ApiOperation("指定流程是否可以被撤销")
+	@GetMapping(value = "canCancelProcessInstance")
+	public boolean canCancelProcessInstance(CancelProcessRequest req) throws WorkflowException {
+		return processSv.canCancelProcessInstance(req);
+	}
+	
+	@ApiOperation("撤销指定流程")
+	@PostMapping(value = "cancelProcessInstance")
+	public void cancelProcessInstance(CancelProcessRequest req) throws WorkflowException {
+		processSv.cancelProcessInstance(req);
 	}
 }
